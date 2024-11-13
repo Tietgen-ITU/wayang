@@ -34,6 +34,8 @@ import org.slf4j.LoggerFactory;
  * Here is a list of todos that we need to go through in order to fully implement this:
  * - TODO: Implement the evaluate method
  * - TODO: Figure out how to limit what is being returned
+ * 
+ * - NOTE: Do not implement new PlanBuilder functions in scala. I think that we can reuse the `readTable()`
  */
 
 /**
