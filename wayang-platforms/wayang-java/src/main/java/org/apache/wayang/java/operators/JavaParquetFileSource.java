@@ -20,6 +20,7 @@ import org.apache.parquet.io.LocalInputFile;
 import org.apache.wayang.basic.data.Record;
 import org.apache.wayang.basic.operators.ParquetFileSource;
 import org.apache.wayang.core.optimizer.OptimizationContext.OperatorContext;
+import org.apache.wayang.core.optimizer.costs.LoadProfileEstimators;
 import org.apache.wayang.core.platform.ChannelDescriptor;
 import org.apache.wayang.core.platform.ChannelInstance;
 import org.apache.wayang.core.platform.lineage.ExecutionLineageNode;
@@ -46,7 +47,7 @@ public class JavaParquetFileSource extends ParquetFileSource implements JavaExec
     private static final Logger logger = LoggerFactory.getLogger(JavaParquetFileSource.class);
     private final String[] columnNames;
 
-    public JavaParquetFileSource(String inputUrl, String ...columnNames) {
+    public JavaParquetFileSource(String inputUrl, String... columnNames) {
         super(inputUrl, columnNames);
 
         this.columnNames = columnNames;
@@ -79,23 +80,23 @@ public class JavaParquetFileSource extends ParquetFileSource implements JavaExec
             try (ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(file).build()) {
 
                 // Create a iterator of records based on the parquet reader
-                Iterator<GenericRecord> iterator = new ParquetIterator(reader); 
+                Iterator<GenericRecord> iterator = new ParquetIterator(reader);
 
                 // Create a stream of records from the iterator
                 Stream<Record> recordStream = StreamSupport
-                    .stream(Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED), false)
-                    .map(genericRecord -> {
+                        .stream(Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED), false)
+                        .map(genericRecord -> {
 
-                        // Prepare fields to be mapped
-                        Object[] recordValues = new Object[columnNames.length];
+                            // Prepare fields to be mapped
+                            Object[] recordValues = new Object[columnNames.length];
 
-                        // Map the fields
-                        for (int i = 0; i < columnNames.length; i++)
-                            recordValues[i] = genericRecord.get(columnNames[i]);
+                            // Map the fields
+                            for (int i = 0; i < columnNames.length; i++)
+                                recordValues[i] = genericRecord.get(columnNames[i]);
 
-                        // Return the record with the mapped fields
-                        return new Record(recordValues);
-                    });
+                            // Return the record with the mapped fields
+                            return new Record(recordValues);
+                        });
 
                 ((StreamChannel.Instance) outputs[0]).accept(recordStream);
             }
@@ -105,7 +106,18 @@ public class JavaParquetFileSource extends ParquetFileSource implements JavaExec
             throw new WayangException(String.format("Reading from file: %s failed.", filePath), ioException);
         }
 
-        return null; // TODO: Look at the text file source and do the same...
+        // TODO: I have no idea what this shit is...
+
+        ExecutionLineageNode prepareLineageNode = new ExecutionLineageNode(operatorContext);
+        prepareLineageNode.add(LoadProfileEstimators.createFromSpecification(
+                "wayang.java.parquetfilesource.load.prepare", javaExecutor.getConfiguration()));
+        ExecutionLineageNode mainLineageNode = new ExecutionLineageNode(operatorContext);
+        mainLineageNode.add(LoadProfileEstimators.createFromSpecification(
+                "wayang.java.parquetfilesource.load.main", javaExecutor.getConfiguration()));
+
+        outputs[0].getLineage().addPredecessor(mainLineageNode);
+
+        return prepareLineageNode.collectAndMark();
     }
 
     private class ParquetIterator implements Iterator<GenericRecord> {
