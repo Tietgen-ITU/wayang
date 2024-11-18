@@ -36,3 +36,4 @@ pom.xml.*
 .metals
 
 wayang-0.7.1/
+test-00000-of-00001.parquet
