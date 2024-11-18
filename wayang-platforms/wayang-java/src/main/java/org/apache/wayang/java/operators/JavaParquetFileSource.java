@@ -1,22 +1,25 @@
 package org.apache.wayang.java.operators;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.wayang.core.api.exception.WayangException;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.io.InputFile;
-import org.apache.parquet.io.LocalInputFile;
 import org.apache.wayang.basic.data.Record;
 import org.apache.wayang.basic.operators.ParquetFileSource;
 import org.apache.wayang.core.optimizer.OptimizationContext.OperatorContext;
@@ -47,12 +50,13 @@ import org.slf4j.LoggerFactory;
 public class JavaParquetFileSource extends ParquetFileSource implements JavaExecutionOperator {
 
     private static final Logger logger = LoggerFactory.getLogger(JavaParquetFileSource.class);
-    private final String[] columnNames;
 
     public JavaParquetFileSource(String inputUrl, String... columnNames) {
         super(inputUrl, columnNames);
+    }
 
-        this.columnNames = columnNames;
+    public JavaParquetFileSource(ParquetFileSource source) {
+        super(source);
     }
 
     @Override
@@ -72,91 +76,38 @@ public class JavaParquetFileSource extends ParquetFileSource implements JavaExec
             ChannelInstance[] outputs, JavaExecutor javaExecutor, OperatorContext operatorContext) {
 
         String filePath = this.getFilePath();
+        String[] columns = this.getColumns();
 
+        System.out.println("filePath: " + filePath);
         // Create InputFile for the parquet reader
-        Path path = Path.of(filePath);
-        InputFile file = new LocalInputFile(path);
+        Path path = new Path(filePath);
 
         // Open and read each record from the parquet file
         try {
+            InputFile file = HadoopInputFile.fromPath(path, new Configuration());
             try (ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(file).build()) {
 
-                // Create a iterator of records based on the parquet reader
-                Iterator<GenericRecord> iterator = new ParquetIterator(reader);
-
-                // Create a stream of records from the iterator
-                Stream<Record> recordStream = StreamSupport
-                        .stream(Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED), false)
-                        .map(genericRecord -> {
-
-                            // Prepare fields to be mapped
-                            Object[] recordValues = new Object[columnNames.length];
-
-                            // Map the fields
-                            for (int i = 0; i < columnNames.length; i++)
-                                recordValues[i] = genericRecord.get(columnNames[i]);
-
-                            // Return the record with the mapped fields
-                            return new Record(recordValues);
-                        });
+                Stream<GenericRecord> recordStream = Stream.generate(() -> {
+                    try {
+                        return reader.read();
+                    } catch (IOException ioException) {
+                        throw new WayangException("Could not read from Parquet file.", ioException);
+                    }
+                }).takeWhile(Objects::nonNull);
 
                 ((StreamChannel.Instance) outputs[0]).accept(recordStream);
             }
         } catch (IOException ioException) {
 
             ioException.printStackTrace();
-            throw new WayangException(String.format("Reading from file: %s failed.", filePath), ioException);
+            throw new WayangException(String.format("Reading from file: %s failed.",
+                    filePath), ioException);
         }
 
-        // TODO: I have no idea what this shit is...
-
-        ExecutionLineageNode prepareLineageNode = new ExecutionLineageNode(operatorContext);
-        prepareLineageNode.add(LoadProfileEstimators.createFromSpecification(
-                "wayang.java.parquetfilesource.load.prepare", javaExecutor.getConfiguration()));
         ExecutionLineageNode mainLineageNode = new ExecutionLineageNode(operatorContext);
-        mainLineageNode.add(LoadProfileEstimators.createFromSpecification(
-                "wayang.java.parquetfilesource.load.main", javaExecutor.getConfiguration()));
 
         outputs[0].getLineage().addPredecessor(mainLineageNode);
 
-        return prepareLineageNode.collectAndMark();
-    }
-
-    private class ParquetIterator implements Iterator<GenericRecord> {
-
-        private final ParquetReader<GenericRecord> reader;
-        private GenericRecord nextRecord;
-
-        public ParquetIterator(ParquetReader<GenericRecord> reader) {
-
-            this.reader = reader;
-            this.nextRecord = this.readNext();
-        }
-
-        private GenericRecord readNext() {
-
-            try {
-
-                return this.reader.read();
-            } catch (IOException ioException) {
-
-                throw new WayangException("Could not read from Parquet file.", ioException);
-            }
-        }
-
-        @Override
-        public boolean hasNext() {
-
-            return this.nextRecord != null;
-        }
-
-        @Override
-        public GenericRecord next() {
-
-            GenericRecord current = this.nextRecord;
-            this.nextRecord = this.readNext();
-
-            return current;
-        }
+        return mainLineageNode.collectAndMark();
     }
 }
