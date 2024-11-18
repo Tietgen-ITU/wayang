@@ -18,13 +18,16 @@
 
 package org.apache.wayang.apps.parquet;
 
+import org.apache.avro.generic.GenericRecord;
 import org.apache.wayang.api.JavaPlanBuilder;
+import org.apache.wayang.basic.data.Record;
 import org.apache.wayang.basic.data.Tuple2;
 import org.apache.wayang.core.api.Configuration;
 import org.apache.wayang.core.api.WayangContext;
 import org.apache.wayang.core.plan.wayangplan.WayangPlan;
 import org.apache.wayang.core.util.ReflectionUtils;
 import org.apache.wayang.java.Java;
+import org.apache.wayang.java.operators.JavaParquetFileSource;
 import org.apache.wayang.java.platform.JavaPlatform;
 import org.apache.wayang.spark.Spark;
 
@@ -44,57 +47,28 @@ public class Main {
                 System.exit(1);
             }
 
+            System.out.println("This is the file input");
+            System.out.println(args[0]);
+
             WayangContext wayangContext = new WayangContext();
-            for (String platform : args[0].split(",")) {
-                switch (platform) {
-                    case "java":
-                        wayangContext.register(Java.basicPlugin());
-                        break;
-                    case "spark":
-                        wayangContext.register(Spark.basicPlugin());
-                        break;
-                    default:
-                        System.err.format("Unknown platform: \"%s\"\n", platform);
-                        System.exit(3);
-                        return;
-                }
-            }
+            wayangContext.register(Java.basicPlugin());
+
 
             /* Get a plan builder */
             JavaPlanBuilder planBuilder = new JavaPlanBuilder(wayangContext)
-                    .withJobName("WordCount")
+                    .withJobName("Parquet Read")
                     .withUdfJarOf(Main.class);
 
             /* Start building the Apache WayangPlan */
-            Collection<Tuple2<String, Integer>> wordcounts = planBuilder
+            Collection<GenericRecord> wordcounts = planBuilder
                     /* Read the text file */
-                    .readTextFile(args[1]).withName("Load file")
-
-                    /* Split each line by non-word characters */
-                    .flatMap(line -> Arrays.asList(line.split("\\W+")))
-                    .withSelectivity(1, 100, 0.9)
-                    .withName("Split words")
-
-                    /* Filter empty tokens */
-                    .filter(token -> !token.isEmpty())
-                    .withName("Filter empty words")
-
-                    /* Attach counter to each word */
-                    .map(word -> new Tuple2<>(word.toLowerCase(), 1)).withName("To lower case, add counter")
-
-                    // Sum up counters for every word.
-                    .reduceByKey(
-                            Tuple2::getField0,
-                            (t1, t2) -> new Tuple2<>(t1.getField0(), t1.getField1() + t2.getField1())
-                    )
-                    .withName("Add counters")
-
-                    /* Execute the plan and collect the results */
+                    .readParquet(new JavaParquetFileSource(args[0], "label", "text"))
                     .collect();
+
+            System.out.println(wordcounts);
 
 
             System.out.printf("Found %d words:\n", wordcounts.size());
-            wordcounts.forEach(wc -> System.out.printf("%dx %s\n", wc.field1, wc.field0));
         } catch (Exception e) {
             System.err.println("App failed.");
             e.printStackTrace();
