@@ -21,10 +21,11 @@ package org.apache.wayang.api
  * TODO: add unitary test to the elements in the file org.apache.wayang.api.PlanBuilder.scala
  * labels: unitary-test,todo
  */
+import org.apache.avro.generic.GenericRecord
 import org.apache.commons.lang3.Validate
 import org.apache.wayang.api
 import org.apache.wayang.basic.data.Record
-import org.apache.wayang.basic.operators.{CollectionSource, ObjectFileSource, TableSource, TextFileSource, ParquetFileSource}
+import org.apache.wayang.basic.operators.{CollectionSource, ObjectFileSource, ParquetFileSource, TableSource, TextFileSource}
 import org.apache.wayang.commons.util.profiledb.model.Experiment
 import org.apache.wayang.core.api.WayangContext
 import org.apache.wayang.core.plan.wayangplan._
@@ -122,7 +123,7 @@ class PlanBuilder(private[api] val wayangContext: WayangContext, private var job
     */
   def readTextFile(url: String): DataQuanta[String] = load(new TextFileSource(url))
 
-  def readParquetFile(filepath: String): DataQuanta[Record] = load(new ParquetFileSource(filepath))
+  def readParquetFile(filepath: String, cols: Array[String]): DataQuanta[GenericRecord] = load(new ParquetFileSource(filepath, cols))
 
   /**
     * Read a text file and provide it as a dataset of [[String]]s, one per line.
@@ -155,7 +156,7 @@ class PlanBuilder(private[api] val wayangContext: WayangContext, private var job
     * @param source from that the [[Record]]s should be read
     * @return [[DataQuanta]] of [[Record]]s in the parquet source
     */
-  def readParquet(source: ParquetFileSource): DataQuanta[Record] = load(source)
+  def readParquet(source: ParquetFileSource): DataQuanta[GenericRecord] = load(source)
 
   /**
     * Loads a [[java.util.Collection]] into Wayang and represents them as [[DataQuanta]].
