@@ -30,50 +30,89 @@ import org.apache.wayang.java.Java;
 import org.apache.wayang.java.operators.JavaParquetFileSource;
 import org.apache.wayang.java.platform.JavaPlatform;
 import org.apache.wayang.spark.Spark;
+import org.apache.wayang.commons.util.profiledb.model.Experiment;
+import org.apache.wayang.commons.util.profiledb.model.Measurement;
+import org.apache.wayang.commons.util.profiledb.model.Subject;
+import org.apache.wayang.commons.util.profiledb.model.measurement.TimeMeasurement;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class Main {
 
     public static void main(String[] args) throws IOException, URISyntaxException {
-        try {
-            if (args.length == 0) {
-                System.err.print("Usage: <platform1>[,<platform2>]* <input file URL>");
-                System.exit(1);
-            }
+        if (args.length == 0) {
+            System.err.print("Usage: <platform1>[,<platform2>]* <input file URL>");
+            System.exit(1);
+        }
 
-            System.out.println("This is the file input");
-            System.out.println(args[0]);
+        ParquetWorkload[] experiments = getExperiments(args[0]);
+
+        Arrays.stream(experiments).forEach(Main::run);
+    }
+
+    private static void run(ParquetWorkload workload) {
+
+        try {
+
+            System.out.println("Running parquet workload with " + workload.getWorkloadName());
+
+            Experiment exp = new Experiment("parquet-bench-yelp", new Subject("parquet-benchmark", "v1.0"));
+            long startTime = System.currentTimeMillis();
 
             WayangContext wayangContext = new WayangContext();
             wayangContext.register(Java.basicPlugin());
 
-
             /* Get a plan builder */
             JavaPlanBuilder planBuilder = new JavaPlanBuilder(wayangContext)
                     .withJobName("Parquet Read")
+                    .withExperiment(exp)
                     .withUdfJarOf(Main.class);
 
             /* Start building the Apache WayangPlan */
-            Collection<GenericRecord> wordcounts = planBuilder
+            Collection<String> wordcounts = planBuilder
                     /* Read the text file */
-                    .readParquet(new JavaParquetFileSource(args[0], "label", "text"))
+                    .readParquet(new JavaParquetFileSource(workload.getFilePath(), workload.getColumns()))
+                    .map(r -> r.getString(0))
+                    .distinct()
                     .collect();
 
-            System.out.println(wordcounts);
+            long stopTime = System.currentTimeMillis();
+            long elapsedTime = stopTime - startTime;
+            System.out.printf("Total elapsed time(latency) %d ms%n", elapsedTime);
 
+            printExperiment(exp);
+            System.out.println();
 
             System.out.printf("Found %d words:\n", wordcounts.size());
+            System.out.println(wordcounts);
+
         } catch (Exception e) {
             System.err.println("App failed.");
             e.printStackTrace();
             System.exit(4);
         }
     }
-}
 
+    private static ParquetWorkload[] getExperiments(String filepath) {
+
+        ParquetWorkload[] workloads = new ParquetWorkload[2];
+
+        workloads[0] = new ParquetWorkload("No projection", filepath);
+        workloads[1] = new ParquetWorkload("Projection", filepath);
+
+        workloads[1].addColumn("label");
+
+        return workloads;
+    }
+
+    private static void printExperiment(Experiment experiment) {
+        System.out.println("\nMeasurements:");
+        for (Measurement m : experiment.getMeasurements()) {
+            if (m instanceof TimeMeasurement) {
+                System.out.println("Time measurement: " + m);
+            }
+        }
+    }
+}
