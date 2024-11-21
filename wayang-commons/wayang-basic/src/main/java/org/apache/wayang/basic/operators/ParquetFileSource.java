@@ -1,22 +1,31 @@
 package org.apache.wayang.basic.operators;
 
-import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
+import org.apache.commons.math3.exception.NullArgumentException;
+import org.apache.wayang.basic.data.Record;
 import org.apache.wayang.core.plan.wayangplan.UnarySource;
 import org.apache.wayang.core.types.DataSetType;
 
-public class ParquetFileSource extends UnarySource<GenericRecord> {
+import java.util.Optional;
+
+public class ParquetFileSource extends UnarySource<Record> {
     private final String filepath;
     private final String[] columns;
-
+    private final Optional<Schema> schema;
 
     public ParquetFileSource(String filepath, String[] columnNames) {
-        this(filepath, createOutputDataSetType(columnNames), columnNames);
+        this(filepath, createOutputDataSetType(), columnNames);
 
     }
-    private ParquetFileSource(String filepath, DataSetType<GenericRecord> type, String... columnNames) {
+
+    private ParquetFileSource(String filepath, DataSetType<Record> type, String... columnNames) {
         super(type);
+        System.out.println(columnNames);
         this.filepath = filepath;
         this.columns = columnNames;
+
+        this.schema = GenerateSchema(this.columns);
     }
 
     public ParquetFileSource(ParquetFileSource source) {
@@ -32,7 +41,27 @@ public class ParquetFileSource extends UnarySource<GenericRecord> {
         return this.columns;
     }
 
-    private static DataSetType<GenericRecord> createOutputDataSetType(String[] columnNames) {
-        return DataSetType.createDefault(GenericRecord.class);
+    public Optional<Schema> getSchema() {
+
+        return this.schema;
+    }
+
+    private static Optional<Schema> GenerateSchema(String... columnNames) {
+
+        if (columnNames == null || columnNames.length == 0)
+            return Optional.empty();
+
+        SchemaBuilder.FieldAssembler<Schema> fieldAssembler = SchemaBuilder
+                .record("record")
+                .fields();
+
+        for (String column : columnNames)
+            fieldAssembler = fieldAssembler.optionalString(column);
+
+        return Optional.of(fieldAssembler.endRecord());
+    }
+
+    private static DataSetType<Record> createOutputDataSetType() {
+        return DataSetType.createDefault(Record.class);
     }
 }

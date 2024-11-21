@@ -96,8 +96,8 @@ class JavaPlanBuilder(wayangCtx: WayangContext, jobName: String) {
     * @param source from that the [[Record]]s should be read
     * @return [[DataQuantaBuilder]] for the [[Record]]s in the parquet source
     */
-  def readParquet(source: ParquetFileSource): UnarySourceDataQuantaBuilder[UnarySourceDataQuantaBuilder[_, GenericRecord], GenericRecord] =
-    createSourceBuilder(source)(ClassTag(classOf[GenericRecord]))
+  def readParquet(source: ParquetFileSource) =
+    createSourceBuilder(source)(ClassTag(classOf[Record])).asRecords
 
 
   /**

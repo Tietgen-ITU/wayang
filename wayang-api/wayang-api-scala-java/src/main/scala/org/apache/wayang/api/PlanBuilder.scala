@@ -123,7 +123,7 @@ class PlanBuilder(private[api] val wayangContext: WayangContext, private var job
     */
   def readTextFile(url: String): DataQuanta[String] = load(new TextFileSource(url))
 
-  def readParquetFile(filepath: String, cols: Array[String]): DataQuanta[GenericRecord] = load(new ParquetFileSource(filepath, cols))
+  def readParquetFile(filepath: String, cols: Array[String]): DataQuanta[Record] = load(new ParquetFileSource(filepath, cols))
 
   /**
     * Read a text file and provide it as a dataset of [[String]]s, one per line.
@@ -156,7 +156,7 @@ class PlanBuilder(private[api] val wayangContext: WayangContext, private var job
     * @param source from that the [[Record]]s should be read
     * @return [[DataQuanta]] of [[Record]]s in the parquet source
     */
-  def readParquet(source: ParquetFileSource): DataQuanta[GenericRecord] = load(source)
+  def readParquet(source: ParquetFileSource): DataQuanta[Record] = load(source)
 
   /**
     * Loads a [[java.util.Collection]] into Wayang and represents them as [[DataQuanta]].

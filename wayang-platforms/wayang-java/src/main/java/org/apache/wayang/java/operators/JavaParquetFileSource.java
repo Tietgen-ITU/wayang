@@ -6,8 +6,10 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -15,9 +17,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.wayang.core.api.exception.WayangException;
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.parquet.avro.AvroParquetReader;
+import org.apache.parquet.avro.AvroReadSupport;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.io.InputFile;
 import org.apache.wayang.basic.data.Record;
@@ -77,23 +81,47 @@ public class JavaParquetFileSource extends ParquetFileSource implements JavaExec
 
         String filePath = this.getFilePath();
         String[] columns = this.getColumns();
+        Configuration configuration = new Configuration();
 
-        System.out.println("filePath: " + filePath);
         // Create InputFile for the parquet reader
         Path path = new Path(filePath);
+
+        Optional<Schema> schema = this.getSchema();
+
+        if (schema.isPresent()) {
+            configuration.set(AvroReadSupport.AVRO_REQUESTED_PROJECTION, schema.get().toString());
+        }
+
+        Function<GenericRecord, Object[]> recordMapper = schema.isPresent() ? gr -> {
+            // Prepare fields to be mapped
+            Object[] recordValues = new Object[columns.length];
+
+            // Map the fields
+            for (int i = 0; i < columns.length; i++)
+                recordValues[i] = gr.get(columns[i]);
+
+            return recordValues;
+        } : gr -> {
+            return gr.getSchema().getFields().stream()
+                    .map(x -> gr.get(x.name())).toArray();
+        };
 
         // Open and read each record from the parquet file
         try {
             InputFile file = HadoopInputFile.fromPath(path, new Configuration());
             try (ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(file).build()) {
 
-                Stream<GenericRecord> recordStream = Stream.generate(() -> {
+                Stream<Record> recordStream = Stream.generate(() -> {
                     try {
                         return reader.read();
                     } catch (IOException ioException) {
                         throw new WayangException("Could not read from Parquet file.", ioException);
                     }
-                }).takeWhile(Objects::nonNull);
+                }).takeWhile(Objects::nonNull).map(genericRecord -> {
+
+                    // Return the record with the mapped fields
+                    return new Record(recordMapper.apply(genericRecord));
+                });
 
                 ((StreamChannel.Instance) outputs[0]).accept(recordStream);
             }
