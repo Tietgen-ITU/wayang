@@ -7,6 +7,7 @@ public class ParquetWorkload {
     private final String workloadName;
     private final String filePath;
     private ArrayList<String> projection;
+    private final int iterations = 5;
 
     public ParquetWorkload(String name, String filePath) {
 
@@ -25,6 +26,10 @@ public class ParquetWorkload {
         return this.projection != null ?
                 projection.toArray(new String[projection.size()]) :
                 null;
+    }
+
+    public int getIterations() {
+        return iterations;
     }
 
     public String getFilePath() {
