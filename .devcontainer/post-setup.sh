@@ -1,5 +1,6 @@
 #!/bin/bash
 
+/opt/coursier/cs setup
 /opt/coursier/cs install scala:2.12.20 && /opt/coursier/cs install scalac:2.12.20
 
 ./mvnw clean install -DskipTests -Drat.skip=true

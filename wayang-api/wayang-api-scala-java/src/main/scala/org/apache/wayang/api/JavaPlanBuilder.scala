@@ -21,11 +21,13 @@ package org.apache.wayang.api
  * TODO: add unitary test to the elements in the file org.apache.wayang.api.JavaPlanBuilder.scala
  * labels: unitary-test,todo
  */
+import org.apache.avro.generic.GenericRecord
+
 import java.util.{Collection => JavaCollection}
 import org.apache.commons.lang3.Validate
 import org.apache.wayang.api.util.DataQuantaBuilderCache
 import org.apache.wayang.basic.data.Record
-import org.apache.wayang.basic.operators.{TableSource, TextFileSource, KafkaTopicSource}
+import org.apache.wayang.basic.operators.{KafkaTopicSource, ParquetFileSource, TableSource, TextFileSource}
 import org.apache.wayang.commons.util.profiledb.model.Experiment
 import org.apache.wayang.core.api.WayangContext
 import org.apache.wayang.core.plan.wayangplan._
@@ -87,6 +89,15 @@ class JavaPlanBuilder(wayangCtx: WayangContext, jobName: String) {
     * @return [[DataQuantaBuilder]] for the [[Record]]s in the table
     */
   def readTable(source: TableSource) = createSourceBuilder(source)(ClassTag(classOf[Record])).asRecords
+
+  /**
+    * Reads a parquet format from source and provides them as a dataset of [[Record]]s.
+    * 
+    * @param source from that the [[Record]]s should be read
+    * @return [[DataQuantaBuilder]] for the [[Record]]s in the parquet source
+    */
+  def readParquet(source: ParquetFileSource) =
+    createSourceBuilder(source)(ClassTag(classOf[Record])).asRecords
 
 
   /**
