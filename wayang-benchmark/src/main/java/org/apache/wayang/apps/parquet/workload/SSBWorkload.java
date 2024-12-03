@@ -31,25 +31,29 @@ public class SSBWorkload extends Workload {
         if (Objects.equals(workloadType, "parquet")) {
 
             Collection<Experiment> experiments = IntStream.range(0, getIterations())
-                    .mapToObj(x -> new Experiment(String.format("%s-ssb-0%d", workloadType, x+1), new Subject("ssb-benchmark", "v1.0")))
+                    .mapToObj(x -> new Experiment(String.format("%s-ssb-0%d", workloadType, x + 1),
+                            new Subject("ssb-benchmark", "v1.0")))
                     .map(x -> SSBWorkload.runParquetWithoutProjection(workloadFile, x))
                     .collect(Collectors.toList());
 
             Collection<Experiment> experimentsProj = IntStream.range(0, getIterations())
-                    .mapToObj(x -> new Experiment(String.format("%s-ssb-projection-0%d", workloadType, x+1), new Subject("ssb-benchmark", "v1.0")))
+                    .mapToObj(x -> new Experiment(String.format("%s-ssb-projection-0%d", workloadType, x + 1),
+                            new Subject("ssb-benchmark", "v1.0")))
                     .map(x -> SSBWorkload.runParquetWithProjection(workloadFile, x))
                     .collect(Collectors.toList());
 
-            experimentStats.add(ExperimentStats.fromCollection("ssb-parquet", experiments));
-            experimentStats.add(ExperimentStats.fromCollection("ssb-parquet-projection", experimentsProj));
+            experimentStats.add(ExperimentStats.fromCollection("ssb-parquet", workloadFile, experiments));
+            experimentStats
+                    .add(ExperimentStats.fromCollection("ssb-parquet-projection", workloadFile, experimentsProj));
         } else if (Objects.equals(workloadType, "csv")) {
 
             Collection<Experiment> experiments = IntStream.range(0, getIterations())
-                    .mapToObj(x -> new Experiment(String.format("%s-ssb-0%d", workloadType, x+1), new Subject("ssb-benchmark", "v1.0")))
+                    .mapToObj(x -> new Experiment(String.format("%s-ssb-0%d", workloadType, x + 1),
+                            new Subject("ssb-benchmark", "v1.0")))
                     .map(x -> SSBWorkload.runCsv(workloadFile, x))
                     .collect(Collectors.toList());
 
-            experimentStats.add(ExperimentStats.fromCollection("ssb-csv", experiments));
+            experimentStats.add(ExperimentStats.fromCollection("ssb-csv", workloadFile, experiments));
         }
 
         return experimentStats.toArray(ExperimentStats[]::new);
@@ -65,7 +69,7 @@ public class SSBWorkload extends Workload {
         /* Start building the Apache WayangPlan */
         Collection<String> distinctLabels = planBuilder
                 /* Read the text file */
-                .readParquet(new JavaParquetFileSource(filepath, "lo_orderkey"))
+                .readParquet(new JavaParquetFileSource(filepath, "LO_ORDERKEY"))
                 .map(r -> r.getString(0))
                 .distinct()
                 .collect();
@@ -102,7 +106,7 @@ public class SSBWorkload extends Workload {
         Collection<String> distinctLabels = planBuilder
                 /* Read the text file */
                 .readTextFile(filepath)
-                .filter(row -> !row.startsWith("label")).withName("Remove headers")
+                .filter(row -> !row.startsWith("LO_ORDERKEY")).withName("Remove headers")
                 .map(x -> x.split(",")[0])
                 .distinct()
                 .collect();
@@ -116,6 +120,5 @@ public class SSBWorkload extends Workload {
 
         return wayangContext;
     }
-
 
 }

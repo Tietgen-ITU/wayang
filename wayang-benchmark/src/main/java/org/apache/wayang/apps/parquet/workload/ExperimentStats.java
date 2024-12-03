@@ -14,17 +14,17 @@ public class ExperimentStats {
 
     private final JsonObject experimentStats;
 
-    private ExperimentStats(String name, JsonObject[] measurements) {
+    private ExperimentStats(String name, String filepath, JsonObject[] measurements) {
         JsonObject parent = new JsonObject();
 
         parent.addProperty("name", name);
+        parent.addProperty("filepath", filepath);
 
         JsonArray experiments = new JsonArray();
-        for(JsonObject j : measurements)
+        for (JsonObject j : measurements)
             experiments.add(j);
 
         parent.add("measurements", experiments);
-
 
         experimentStats = parent;
     }
@@ -33,22 +33,22 @@ public class ExperimentStats {
         return experimentStats;
     }
 
-    public static ExperimentStats fromArray(String name, Experiment... experiments) {
+    public static ExperimentStats fromArray(String name, String filepath, Experiment... experiments) {
 
-        return fromCollection(name, Arrays.asList(experiments));
+        return fromCollection(name, filepath, Arrays.asList(experiments));
     }
 
-    public static ExperimentStats fromCollection(String name, Collection<Experiment> experiments) {
+    public static ExperimentStats fromCollection(String name, String filepath, Collection<Experiment> experiments) {
 
         JsonObject[] measurements = experiments.stream()
-                        .map(Experiment::getMeasurements)
-                        .map(xs -> {
-                            JsonObject jsonObject = new JsonObject();
-                            xs.forEach(x -> addMeasurement(jsonObject, x));
-                            return jsonObject;
-                        }).toArray(JsonObject[]::new);
+                .map(Experiment::getMeasurements)
+                .map(xs -> {
+                    JsonObject jsonObject = new JsonObject();
+                    xs.forEach(x -> addMeasurement(jsonObject, x));
+                    return jsonObject;
+                }).toArray(JsonObject[]::new);
 
-        return new ExperimentStats(name, measurements);
+        return new ExperimentStats(name, filepath, measurements);
     }
 
     private static void addMeasurement(JsonObject jsonObj, Measurement measurement) {

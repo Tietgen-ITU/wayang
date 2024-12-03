@@ -6,7 +6,7 @@ build:
 	./mvnw clean package -pl :wayang-assembly -Pdistribution
 
 run: 
-	wayang-submit org.apache.wayang.apps.parquet.Main file:///workspaces/wayang/dataset/yelp/yelp-650000.parquet
+	OTHER_FLAGS="-Xmx10g" wayang-submit org.apache.wayang.apps.parquet.Main /workspaces/wayang/datasets
 
 .PHONY: install-benchmark
 install-benchmark:

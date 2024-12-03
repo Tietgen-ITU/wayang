@@ -28,28 +28,31 @@ public class YelpWorkload extends Workload {
 
         List<ExperimentStats> experimentStats = new ArrayList<>();
 
-        if(Objects.equals(workloadType, "parquet")) {
+        if (Objects.equals(workloadType, "parquet")) {
             Collection<Experiment> experiments = IntStream.range(0, getIterations())
-                    .mapToObj(x -> new Experiment(String.format("%s-yelp-0%d", workloadType, x+1), new Subject("yelp-benchmark", "v1.0")))
+                    .mapToObj(x -> new Experiment(String.format("%s-yelp-0%d", workloadType, x + 1),
+                            new Subject("yelp-benchmark", "v1.0")))
                     .map(x -> YelpWorkload.runParquet(new JavaParquetFileSource(filepath), x))
                     .collect(Collectors.toList());
 
             Collection<Experiment> experimentsProj = IntStream.range(0, getIterations())
-                    .mapToObj(x -> new Experiment(String.format("%s-yelp-projection-0%d", workloadType, x+1), new Subject("yelp-benchmark", "v1.0")))
+                    .mapToObj(x -> new Experiment(String.format("%s-yelp-projection-0%d", workloadType, x + 1),
+                            new Subject("yelp-benchmark", "v1.0")))
                     .map(x -> YelpWorkload.runParquet(new JavaParquetFileSource(filepath, "label"), x))
                     .collect(Collectors.toList());
 
-            experimentStats.add(ExperimentStats.fromCollection("yelp-parquet", experiments));
-            experimentStats.add(ExperimentStats.fromCollection("yelp-parquet- projection", experimentsProj));
+            experimentStats.add(ExperimentStats.fromCollection("yelp-parquet", filepath, experiments));
+            experimentStats.add(ExperimentStats.fromCollection("yelp-parquet-projection", filepath, experimentsProj));
 
         } else if (Objects.equals(workloadType, "csv")) {
 
             Collection<Experiment> experiments = IntStream.range(0, getIterations())
-                    .mapToObj(x -> new Experiment(String.format("%s-yelp-0%d", workloadType, x+1), new Subject("yelp-benchmark", "v1.0")))
+                    .mapToObj(x -> new Experiment(String.format("%s-yelp-0%d", workloadType, x + 1),
+                            new Subject("yelp-benchmark", "v1.0")))
                     .map(x -> YelpWorkload.runCsv(filepath, x))
                     .collect(Collectors.toList());
 
-            experimentStats.add(ExperimentStats.fromCollection("yelp-csv", experiments));
+            experimentStats.add(ExperimentStats.fromCollection("yelp-csv", filepath, experiments));
         }
 
         return experimentStats.toArray(ExperimentStats[]::new);
@@ -83,7 +86,7 @@ public class YelpWorkload extends Workload {
         Collection<String> distinctLabels = planBuilder
                 /* Read the text file */
                 .readTextFile(filepath)
-                .filter(row -> !row.startsWith("lo_orderkey")).withName("Remove headers")
+                .filter(row -> !row.startsWith("label")).withName("Remove headers")
                 .map(x -> x.split(",")[0])
                 .distinct()
                 .collect();

@@ -8,7 +8,7 @@ public abstract class Workload implements RunnableWorkload {
 
     private final String workloadFilePath;
     private final String workloadType;
-    private final int iterations = 1;
+    private final int iterations = 3;
 
     public Workload(String workloadFilePath) {
         this.workloadFilePath = workloadFilePath;
@@ -34,8 +34,9 @@ public abstract class Workload implements RunnableWorkload {
     private static final String[] workloadTypes = new String[] { "ssb", "yelp" };
 
     public static Stream<RunnableWorkload> getWorkloadsFromDirectory(String directory) {
-
+        System.out.println(directory);
         return Stream.of(workloadTypes).flatMap(workloadType -> getFilesFromDirectory(directory + "/" + workloadType)
+                .peek(System.out::println)
                 .map(filePath -> createWorkloads(workloadType, filePath))
                 .filter(Objects::nonNull));
     }
@@ -47,9 +48,11 @@ public abstract class Workload implements RunnableWorkload {
         File[] files = directory.listFiles();
 
         if (files == null)
-            return Stream.empty(); /* We do not want to throw because
-                                      then we would have to handle a bunch of stupid try catch...
-                                      I am too old for that stuff! */
+            return Stream.empty(); /*
+                                    * We do not want to throw because
+                                    * then we would have to handle a bunch of stupid try catch...
+                                    * I am too old for that stuff!
+                                    */
 
         return Stream.of(files).map(x -> "file://" + x.toString());
     }
