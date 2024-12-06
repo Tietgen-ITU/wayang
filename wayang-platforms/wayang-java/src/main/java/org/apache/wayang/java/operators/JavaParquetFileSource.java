@@ -53,8 +53,6 @@ import org.slf4j.LoggerFactory;
  */
 public class JavaParquetFileSource extends ParquetFileSource implements JavaExecutionOperator {
 
-    private static final Logger logger = LoggerFactory.getLogger(JavaParquetFileSource.class);
-
     public JavaParquetFileSource(String inputUrl, String... columnNames) {
         super(inputUrl, columnNames);
     }
@@ -108,7 +106,7 @@ public class JavaParquetFileSource extends ParquetFileSource implements JavaExec
 
         // Open and read each record from the parquet file
         try {
-            InputFile file = HadoopInputFile.fromPath(path, new Configuration());
+            InputFile file = HadoopInputFile.fromPath(path, configuration);
             try (ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(file).build()) {
 
                 Stream<Record> recordStream = Stream.generate(() -> {
