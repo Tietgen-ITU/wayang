@@ -6,7 +6,7 @@ build:
 	./mvnw clean package -pl :wayang-assembly -Pdistribution
 
 run: 
-	OTHER_FLAGS="-Xmx10g" wayang-submit org.apache.wayang.apps.parquet.Main /workspaces/wayang/datasets
+	OTHER_FLAGS="-Xmx10g" wayang-submit org.apache.wayang.apps.parquet.Main "${PWD}/datasets"
 
 .PHONY: install-benchmark
 install-benchmark:
