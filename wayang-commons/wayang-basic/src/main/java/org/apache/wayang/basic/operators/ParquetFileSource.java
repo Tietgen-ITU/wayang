@@ -56,7 +56,9 @@ public class ParquetFileSource extends UnarySource<Record> {
                 .fields();
 
         for (String column : columnNames)
-            fieldAssembler = fieldAssembler.optionalString(column);
+            // TODO: Implement adding the correct types...
+            // fieldAssembler = fieldAssembler.optionalInt(column);
+            fieldAssembler = fieldAssembler.optionalLong(column);
 
         return Optional.of(fieldAssembler.endRecord());
     }
