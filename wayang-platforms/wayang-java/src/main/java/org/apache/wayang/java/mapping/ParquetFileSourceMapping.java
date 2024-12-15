@@ -1,6 +1,7 @@
 package org.apache.wayang.java.mapping;
 
 import org.apache.wayang.basic.operators.ParquetFileSource;
+import org.apache.wayang.basic.operators.ParquetSchema;
 import org.apache.wayang.core.mapping.*;
 import org.apache.wayang.java.operators.JavaParquetFileSource;
 import org.apache.wayang.java.platform.JavaPlatform;
@@ -15,20 +16,17 @@ public class ParquetFileSourceMapping implements Mapping {
         return Collections.singleton(new PlanTransformation(
                 this.createSubplanPattern(),
                 this.createReplacementSubplanFactory(),
-                JavaPlatform.getInstance()
-        ));
+                JavaPlatform.getInstance()));
     }
 
     private SubplanPattern createSubplanPattern() {
         final OperatorPattern operatorPattern = new OperatorPattern(
-                "source", new ParquetFileSource((String)null, (String[]) null), false
-        );
+                "source", new ParquetFileSource((String) null, (ParquetSchema) null), false);
         return SubplanPattern.createSingleton(operatorPattern);
     }
 
     private ReplacementSubplanFactory createReplacementSubplanFactory() {
         return new ReplacementSubplanFactory.OfSingleOperators<ParquetFileSource>(
-                (matchedOperator, epoch) -> new JavaParquetFileSource(matchedOperator).at(epoch)
-        );
+                (matchedOperator, epoch) -> new JavaParquetFileSource(matchedOperator).at(epoch));
     }
 }
