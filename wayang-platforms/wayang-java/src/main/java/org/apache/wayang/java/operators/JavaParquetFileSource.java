@@ -13,9 +13,11 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.apache.avro.SchemaBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
+import org.apache.wayang.basic.operators.ParquetSchema;
 import org.apache.wayang.core.api.exception.WayangException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -53,12 +55,35 @@ import org.slf4j.LoggerFactory;
  */
 public class JavaParquetFileSource extends ParquetFileSource implements JavaExecutionOperator {
 
-    public JavaParquetFileSource(String inputUrl, String... columnNames) {
-        super(inputUrl, columnNames);
+    public JavaParquetFileSource(String inputUrl, ParquetSchema schema) {
+        super(inputUrl, schema);
+
     }
 
     public JavaParquetFileSource(ParquetFileSource source) {
         super(source);
+    }
+
+    private static Schema GenerateSchema(ParquetSchema schema) {
+        if (schema == null)
+            return null;
+
+        SchemaBuilder.FieldAssembler<Schema> fieldAssembler = SchemaBuilder
+                .record("record")
+                .fields();
+
+        for (var column : schema.getColumns()) {
+            if (column.getField1().equals("string"))
+                fieldAssembler = fieldAssembler.optionalString(column.getField0());
+            else if (column.getField1().equals("int"))
+                fieldAssembler = fieldAssembler.optionalInt(column.getField0());
+            else if (column.getField1().equals("long"))
+                fieldAssembler = fieldAssembler.optionalLong(column.getField0());
+            else
+                throw new NotImplementedException("Type not implemented: " + column.field0);
+        };
+
+        return fieldAssembler.endRecord();
     }
 
     @Override
@@ -84,13 +109,15 @@ public class JavaParquetFileSource extends ParquetFileSource implements JavaExec
         // Create InputFile for the parquet reader
         Path path = new Path(filePath);
 
-        Optional<Schema> schema = this.getSchema();
+        Optional<ParquetSchema> parquetSchema = this.getSchema();
+        Schema schema = null;
 
-        if (schema.isPresent()) {
-            configuration.set(AvroReadSupport.AVRO_REQUESTED_PROJECTION, schema.get().toString());
+        if (parquetSchema.isPresent()) {
+            schema = GenerateSchema(parquetSchema.get());
+            configuration.set(AvroReadSupport.AVRO_REQUESTED_PROJECTION, schema.toString());
         }
 
-        Function<GenericRecord, Object[]> recordMapper = schema.isPresent() ? gr -> {
+        Function<GenericRecord, Object[]> recordMapper = schema != null ? gr -> {
             // Prepare fields to be mapped
             Object[] recordValues = new Object[columns.length];
 

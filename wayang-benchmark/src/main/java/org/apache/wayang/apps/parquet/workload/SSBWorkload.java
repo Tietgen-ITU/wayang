@@ -2,6 +2,7 @@ package org.apache.wayang.apps.parquet.workload;
 
 import org.apache.wayang.api.JavaPlanBuilder;
 import org.apache.wayang.apps.parquet.Main;
+import org.apache.wayang.basic.operators.ParquetSchema;
 import org.apache.wayang.commons.util.profiledb.model.Experiment;
 import org.apache.wayang.commons.util.profiledb.model.Subject;
 import org.apache.wayang.core.api.WayangContext;
@@ -67,9 +68,13 @@ public class SSBWorkload extends Workload {
                 .withUdfJarOf(Main.class);
 
         /* Start building the Apache WayangPlan */
+        ParquetSchema schema = ParquetSchema.createBuilder()
+                                            .addLongColumn("LO_ORDERKEY")
+                                            .build();
+
         Collection<String> distinctLabels = planBuilder
                 /* Read the text file */
-                .readParquet(new JavaParquetFileSource(filepath, "LO_ORDERKEY"))
+                .readParquet(new JavaParquetFileSource(filepath, schema))
                 .map(r -> r.getString(0))
                 .distinct()
                 .collect();
@@ -87,7 +92,7 @@ public class SSBWorkload extends Workload {
         /* Start building the Apache WayangPlan */
         Collection<String> distinctLabels = planBuilder
                 /* Read the text file */
-                .readParquet(new JavaParquetFileSource(filepath))
+                .readParquet(new JavaParquetFileSource(filepath, null))
                 .map(r -> r.getString(0))
                 .distinct()
                 .collect();
