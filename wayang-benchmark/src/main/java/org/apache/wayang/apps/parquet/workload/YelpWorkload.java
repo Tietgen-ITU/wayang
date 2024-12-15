@@ -2,6 +2,7 @@ package org.apache.wayang.apps.parquet.workload;
 
 import org.apache.wayang.api.JavaPlanBuilder;
 import org.apache.wayang.apps.parquet.Main;
+import org.apache.wayang.basic.operators.ParquetSchema;
 import org.apache.wayang.commons.util.profiledb.model.Experiment;
 import org.apache.wayang.commons.util.profiledb.model.Subject;
 import org.apache.wayang.core.api.WayangContext;
@@ -29,16 +30,21 @@ public class YelpWorkload extends Workload {
         List<ExperimentStats> experimentStats = new ArrayList<>();
 
         if (Objects.equals(workloadType, "parquet")) {
+
+            ParquetSchema schema = ParquetSchema.createBuilder()
+                                            .addIntColumn("label")
+                                            .build();
+
             Collection<Experiment> experiments = IntStream.range(0, getIterations())
                     .mapToObj(x -> new Experiment(String.format("%s-yelp-0%d", workloadType, x + 1),
                             new Subject("yelp-benchmark", "v1.0")))
-                    .map(x -> YelpWorkload.runParquet(new JavaParquetFileSource(filepath), x))
+                    .map(x -> YelpWorkload.runParquet(new JavaParquetFileSource(filepath, null), x))
                     .collect(Collectors.toList());
 
             Collection<Experiment> experimentsProj = IntStream.range(0, getIterations())
                     .mapToObj(x -> new Experiment(String.format("%s-yelp-projection-0%d", workloadType, x + 1),
                             new Subject("yelp-benchmark", "v1.0")))
-                    .map(x -> YelpWorkload.runParquet(new JavaParquetFileSource(filepath, "label"), x))
+                    .map(x -> YelpWorkload.runParquet(new JavaParquetFileSource(filepath, schema), x))
                     .collect(Collectors.toList());
 
             experimentStats.add(ExperimentStats.fromCollection("yelp-parquet", filepath, experiments));
